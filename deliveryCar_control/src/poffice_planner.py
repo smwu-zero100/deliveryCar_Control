@@ -3,35 +3,33 @@
 import rospy
 import sys
 
-from nav_msgs.msg import Path,Odometry
-from std_msgs.msg import Float64,Int16,Float32MultiArray
-from geometry_msgs.msg import PoseStamped,Point,Pose
-from morai_msgs.msg import Poffice
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseStamped,Point
 from std_msgs.msg import Int32
-from ublox_msgs.msg import NavPVT
+from zero100_msgs.msg import Heading
 from lib.utils_final import pathReader,findLocalPath,purePursuit
 
-class PofficePlanner():
+class DeliveryCarPlanner():
     def __init__(self):
-        rospy.init_node('Poffice_planner')
+        rospy.init_node('deliveryCar_planner')
         arg = rospy.myargv(argv = sys.argv)
         self.path_name = 'poffice_utm' #.txt file name
         rate = rospy.Rate(5)
 
-        self.pose_msg = Odometry()    #gps
-        self.yaw_msg = NavPVT()       #gps에서 heading 받아옴 
+        self.pose_msg = Odometry()
+        self.yaw_msg = Heading()
         pure_pursuit = purePursuit()
-        look_steering_point = Point() #steering 계산에 기준이 되는 포인트
+        look_steering_point = Point()
 
         #publisher
-        #poffice_pub = rospy.Publisher("/poffice_cmd", Poffice, queue_size=10)
-        pub = rospy.Publisher("/poffice_cmd", Int32, queue_size=10)
+        pub = rospy.Publisher("/deliveryCar_cmd", Int32, queue_size=1)
+        
         #subscriber
         rospy.Subscriber("/odom", Odometry, self.pose_callback)
-        rospy.Subscriber("/ublox/navpvt", NavPVT, self.yaw_callback)
+        rospy.Subscriber("/ipad/heading", Heading, self.heading_callback)
         
        #Path 생성에 대한 객체, 변수
-        path_reader = pathReader('poffice_control')    #package name
+        path_reader = pathReader('deliveryCar_control')
         self.global_path=path_reader.read_txt(self.path_name+".txt")
         self.current_waypoint = 0
         self.target_angle_index = 0
@@ -46,7 +44,6 @@ class PofficePlanner():
             pure_pursuit.getYawStatus(self.yaw_msg)
             
             self.steering_angle, look_steering_point, self.target_angle_index = pure_pursuit.steering_angle(self.current_waypoint)
-            #poffice_msg.steering = (int)(self.steering_angle + 80)
             steering = (int)(80-self.steering_angle)
             rospy.loginfo("steering :{0}".format(steering))
             pub.publish(steering)
@@ -61,14 +58,15 @@ class PofficePlanner():
         self.pose_msg=Odometry()
         self.pose_msg=data
 
-    def yaw_callback(self,yaw_data):
-        self.yaw_msg=NavPVT()
-        self.yaw_msg=yaw_data
+    def yaw_callback(self,data):
+        self.yaw_msg=Heading()
+        self.yaw_msg=data
     
 
     
 if __name__ == '__main__':
     try:
-        pathtracking= PofficePlanner()
+        pathtracking= DeliveryCarPlanner()
+        
     except rospy.ROSInterruptException:
         pass
